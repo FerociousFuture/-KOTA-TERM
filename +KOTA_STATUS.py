@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import time  # Necesario para calcular el paso del tiempo
 
 # Ajusta la ruta si es necesario
 JSON_PATH = os.path.expanduser("~/mascota_savegame.json")
@@ -38,19 +39,51 @@ def main():
         with open(JSON_PATH, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        # Extraer datos con valores por defecto
+        # --- LÓGICA DE SIMULACIÓN DE TIEMPO ---
+        # Extraemos datos base
+        ultima_conexion = float(data.get("ultima_conexion", time.time()))
+        hambre = float(data.get("hambre", 100))
+        energia = float(data.get("energia", 100))
+        dormido = data.get("estado_dormido", False)
+        
+        # Calcular tiempo transcurrido
+        ahora = time.time()
+        horas_pasadas = (ahora - ultima_conexion) / 3600
+
+        # Aplicar el mismo decaimiento que el script principal
+        if horas_pasadas > 0.02: # Solo si ha pasado un poco de tiempo
+            if dormido:
+                # Metabolismo lento dormido
+                hambre -= horas_pasadas * 2.0
+                energia += horas_pasadas * 12.5
+            else:
+                # Metabolismo normal despierto
+                hambre -= horas_pasadas * 10.0
+                energia -= horas_pasadas * 6.25
+
+        # Limitar valores (Clamp 0-100)
+        hambre = max(0, min(100, hambre))
+        energia = max(0, min(100, energia))
+        
+        # --- FIN LÓGICA SIMULACIÓN ---
+
         nombre = data.get("nombre", "Mascota")
-        hambre = float(data.get("hambre", 0))
-        energia = float(data.get("energia", 0))
         afecto_raw = float(data.get("afecto", 0))
         # Normalizar afecto de -100~100 a 0~100 para display
         afecto = (afecto_raw + 100) / 2
-        dormido = data.get("estado_dormido", False)
+        
         status = data.get("status", "vivo")
         
         # Personalidad
         p = data.get("personalidad", {})
         estres = float(p.get("estres", 0))
+
+        # Recalcular estrés visualmente basado en las nuevas stats calculadas
+        # (Opcional, pero ayuda a que sea coherente)
+        estres_simulado = estres
+        if hambre < 30: estres_simulado += 10
+        if energia < 30: estres_simulado += 10
+        estres_simulado = min(100, estres_simulado)
 
         # Iconos y Estado
         if status != "vivo":
@@ -68,7 +101,7 @@ def main():
             f"   {estado_icon} {C_BOLD}{nombre}{C_RESET}  ::  "
             f"🍖 {get_color(hambre)}{int(hambre)}%{C_RESET}  "
             f"⚡ {get_color(energia)}{int(energia)}%{C_RESET}  "
-            f"🧠 {get_color(estres, True)}{int(estres)}%{C_RESET}  "
+            f"🧠 {get_color(estres_simulado, True)}{int(estres_simulado)}%{C_RESET}  "
             f"❤️  {C_MAGENTA}{int(afecto)}%{C_RESET}  "
             f"[{estado_txt}]"
         )
