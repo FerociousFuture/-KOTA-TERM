@@ -69,7 +69,7 @@ class GeoPet:
                 "alimentaciones": [],
                 "sesiones_juego": [],
                 "ciclos_sueno": [],
-                "paseos": [] # Nuevo historial
+                "paseos": [] 
             }
         }
         
@@ -90,7 +90,6 @@ class GeoPet:
             try:
                 with open(FILE_DATA, 'r') as f:
                     cargar = json.load(f)
-                    # Merge recursivo simple para evitar perder keys nuevas
                     for key in self.data:
                         if key in cargar:
                             if isinstance(self.data[key], dict) and isinstance(cargar[key], dict):
@@ -113,12 +112,15 @@ class GeoPet:
         if horas < 0.02:
             return
 
-        decay_hambre = horas * 10
-        
+        # --- MODIFICACIÓN: Metabolismo ---
         if self.data["estado_dormido"]:
+            # Si duerme, metabolismo lento (2 puntos por hora)
+            decay_hambre = horas * 2.0 
             self.data["energia"] += horas * 12.5
             self.data["personalidad"]["privacion_sueno"] -= horas * 3
         else:
+            # Si despierto, metabolismo normal (10 puntos por hora)
+            decay_hambre = horas * 10.0
             self.data["energia"] -= horas * 6.25
             self.data["personalidad"]["privacion_sueno"] += horas * 2
 
@@ -243,7 +245,7 @@ class GeoPet:
         }
         return caras.get(expresion, ("─ ─", "• •"))
 
-    # Métodos de dibujo específicos (Abreviados para ahorrar espacio visual, misma lógica)
+    # Métodos de dibujo específicos
     def dibujar_triangulo(self, e):
         c, o = self.get_cara_ascii(e)
         print(f"        △\n       ╱ ╲\n      ╱{c}╲\n     ╱ {o} ╲\n    ╱       ╲\n   ╱─────────╲")
@@ -426,7 +428,6 @@ class GeoPet:
         self.limpiar_pantalla()
         p = self.data["personalidad"]
         h = self.data["historial"]
-        # Fix para historial antiguo que no tenga paseos
         num_paseos = len(h.get("paseos", []))
         
         print(f"\n{Color.CYAN}{Color.BOLD}╔═══════════════════════════════════════╗{Color.RESET}")
