@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-+KOTA - Mascota Virtual de Terminal (Enhanced Edition)
++KOTA - Mascota Virtual de Terminal (Enhanced Edition - Arcade Patch)
 Uso: python +KOTA.py [comando] [argumentos]
 
 Comandos disponibles:
@@ -43,20 +43,20 @@ class Color:
     WHITE = '\033[97m'
     GRAY = '\033[90m'
 
-# --- CATÁLOGO DE TIENDA ---
+# --- CATÁLOGO DE TIENDA (BUFFED) ---
 TIENDA_ITEMS = {
     "comidas": {
-        "manzana": {"precio": 5, "hambre": 20, "tipo": "comun", "emoji": "🍎"},
-        "pizza": {"precio": 15, "hambre": 40, "tipo": "chatarra", "emoji": "🍕"},
-        "ensalada": {"precio": 12, "hambre": 30, "tipo": "saludable", "emoji": "🥗"},
-        "sushi": {"precio": 25, "hambre": 50, "tipo": "premium", "emoji": "🍣"},
-        "dulce": {"precio": 8, "hambre": 15, "tipo": "chatarra", "emoji": "🍬"},
+        "manzana": {"precio": 5, "hambre": 30, "tipo": "comun", "emoji": "🍎"}, # Antes 20
+        "pizza": {"precio": 15, "hambre": 60, "tipo": "chatarra", "emoji": "🍕"}, # Antes 40
+        "ensalada": {"precio": 12, "hambre": 45, "tipo": "saludable", "emoji": "🥗"}, # Antes 30
+        "sushi": {"precio": 25, "hambre": 80, "tipo": "premium", "emoji": "🍣"}, # Antes 50
+        "dulce": {"precio": 8, "hambre": 20, "tipo": "chatarra", "emoji": "🍬"}, # Antes 15
     },
     "pociones": {
-        "energia_menor": {"precio": 20, "energia": 30, "emoji": "⚡"},
-        "energia_mayor": {"precio": 40, "energia": 60, "emoji": "🔋"},
-        "anti_estres": {"precio": 35, "estres": -40, "emoji": "😌"},
-        "full_revive": {"precio": 100, "hambre": 100, "energia": 100, "afecto": 30, "estres": -50, "emoji": "💊"},
+        "energia_menor": {"precio": 20, "energia": 40, "emoji": "⚡"},
+        "energia_mayor": {"precio": 40, "energia": 80, "emoji": "🔋"},
+        "anti_estres": {"precio": 35, "estres": -50, "emoji": "😌"},
+        "full_revive": {"precio": 100, "hambre": 100, "energia": 100, "afecto": 50, "estres": -80, "emoji": "💊"},
     },
     "accesorios": {
         "sombrero": {"precio": 50, "emoji": "🎩", "tipo": "cabeza"},
@@ -106,7 +106,7 @@ class GeoPet:
             "nivel": 1,
             "exp": 0,
             "exp_max": 100,
-            "monedas": 50,  # Monedas iniciales
+            "monedas": 100,  # Monedas iniciales
             "inventario": {
                 "comidas": {},
                 "pociones": {},
@@ -119,8 +119,11 @@ class GeoPet:
         self.cargar_datos()
         
         if self.data["status"] == "escapado":
-            self.mostrar_abandono()
-            sys.exit(1)
+            # Oportunidad de redención en modo Arcade
+            self.data["status"] = "vivo"
+            self.data["afecto"] = 0
+            self.data["maltrato_acumulado"] = 0
+            print(f"{Color.GREEN}¡Tu mascota ha decidido darte otra oportunidad!{Color.RESET}")
         
         self.procesar_tiempo_offline()
         self.actualizar_personalidad()
@@ -148,6 +151,7 @@ class GeoPet:
             json.dump(self.data, f, indent=4)
 
     def procesar_tiempo_offline(self):
+        # --- AJUSTE DE TIEMPO A 24 HORAS ---
         ahora = time.time()
         delta = ahora - self.data["ultima_conexion"]
         horas = delta / 3600
@@ -156,22 +160,22 @@ class GeoPet:
             return
 
         if self.data["estado_dormido"]:
-            decay_hambre = horas * 2.0 
-            self.data["energia"] += horas * 12.5
-            self.data["personalidad"]["privacion_sueno"] -= horas * 3
+            decay_hambre = horas * 0.5  # Hambre baja muy lento dormido (antes 2.0)
+            self.data["energia"] += horas * 50.0 # Recupera full en 2 horas (antes 12.5)
+            self.data["personalidad"]["privacion_sueno"] -= horas * 5
         else:
-            decay_hambre = horas * 10.0
-            self.data["energia"] -= horas * 6.25
-            self.data["personalidad"]["privacion_sueno"] += horas * 2
+            decay_hambre = horas * 4.2  # Tarda ~24 horas en llegar a 0% (antes 2.0)
+            self.data["energia"] -= horas * 4.2 # Tarda ~24 horas en cansarse (antes 1.5)
+            self.data["personalidad"]["privacion_sueno"] += horas * 1
 
         self.data["hambre"] -= decay_hambre
         
+        # Penalizaciones más suaves
         hora_actual = datetime.now().hour
         if 0 <= hora_actual <= 6 and not self.data["estado_dormido"]:
-            if self.data["energia"] < 30:
-                self.data["afecto"] -= 15
-                self.data["maltrato_acumulado"] += 10
-                self.data["personalidad"]["maltrato_psicologico"] += 5
+            if self.data["energia"] < 15: # Solo si está MUY cansado
+                self.data["afecto"] -= 5
+                self.data["maltrato_acumulado"] += 5
         
         self.check_limites()
 
@@ -185,7 +189,8 @@ class GeoPet:
                 self.data["personalidad"][key] = max(0, min(100, 
                     self.data["personalidad"][key]))
 
-        if self.data["afecto"] < -70 or self.data["maltrato_acumulado"] > 150:
+        # Límites más permisivos para escapar
+        if self.data["afecto"] < -90 or self.data["maltrato_acumulado"] > 300:
             self.escapar()
 
     def escapar(self):
@@ -222,10 +227,14 @@ class GeoPet:
             print(f"\n{Color.YELLOW}{Color.BOLD}✨ ¡NIVEL SUBIDO! ✨{Color.RESET}")
             print(f"{Color.GREEN}{self.data['nombre']} ahora es nivel {self.data['nivel']}!{Color.RESET}")
             
-            # Recompensa por subir de nivel
-            monedas_bonus = self.data["nivel"] * 10
+            # Recompensa mejorada por subir de nivel
+            monedas_bonus = self.data["nivel"] * 20 # Antes 10
             self.data["monedas"] += monedas_bonus
             print(f"{Color.CYAN}+{monedas_bonus} monedas de bonificación!{Color.RESET}\n")
+            
+            # Recuperar stats al subir nivel
+            self.data["energia"] = min(100, self.data["energia"] + 20)
+            self.data["hambre"] = min(100, self.data["hambre"] + 20)
         
         self.determinar_evolucion()
 
@@ -694,7 +703,8 @@ class GeoPet:
             self.data["personalidad"]["estres"] -= 5
             self.data["personalidad"]["amor_recibido"] += 1
         
-        self.ganar_exp(5)
+        # ARCADE: Acariciar ahora da un poco de XP gratis
+        self.ganar_exp(10)
         self.actualizar_personalidad()
         self.check_limites()
         self.guardar_datos()
@@ -704,18 +714,19 @@ class GeoPet:
             print(f"{Color.YELLOW}ZzZz... está dormido.{Color.RESET}")
             return
 
-        if self.data["energia"] < 20:
+        if self.data["energia"] < 10: # Antes < 20
             print(f"{Color.RED}{self.data['nombre']} está demasiado cansado para salir.{Color.RESET}")
             return
         
-        if self.data["hambre"] < 15:
+        if self.data["hambre"] < 10: # Antes < 15
             print(f"{Color.RED}{self.data['nombre']} tiene demasiada hambre para caminar.{Color.RESET}")
             return
 
-        self.data["energia"] -= 25
-        self.data["hambre"] -= 20
-        self.data["afecto"] += 10
-        self.data["personalidad"]["estres"] -= 15
+        # COSTOS REDUCIDOS (ARCADE)
+        self.data["energia"] -= 10 # Antes 25
+        self.data["hambre"] -= 5   # Antes 20
+        self.data["afecto"] += 15  # Antes 10
+        self.data["personalidad"]["estres"] -= 25 # Antes 15
         
         if "paseos" not in self.data["historial"]: self.data["historial"]["paseos"] = []
         self.data["historial"]["paseos"].append(time.time())
@@ -732,16 +743,16 @@ class GeoPet:
 
         print(f"\n{Color.GREEN}🌲 ¡Salieron de paseo! 🌲{Color.RESET}")
         print(f"Caminaron un buen rato y {self.data['nombre']} {evento}")
-        print(f"{Color.CYAN}(Energía -25, Hambre -20, Estrés -15, Afecto +10){Color.RESET}")
+        print(f"{Color.CYAN}(Energía -10, Hambre -5, Estrés -25, Afecto +15){Color.RESET}")
         
-        self.ganar_exp(15)
+        self.ganar_exp(25) # Más experiencia por paseo
         self.actualizar_personalidad()
         self.check_limites()
         self.guardar_datos()
 
     def dormir(self):
         if not self.data["estado_dormido"]:
-            if self.data["energia"] > 70:
+            if self.data["energia"] > 80: # Más flexible
                 print(f"{Color.YELLOW}{self.data['nombre']} tiene demasiada energía para dormir.{Color.RESET}")
                 return
             self.data["estado_dormido"] = True
@@ -754,7 +765,7 @@ class GeoPet:
             if len(self.data["historial"]["ciclos_sueno"]) > 0:
                 ultimo = self.data["historial"]["ciclos_sueno"][-1]
                 duracion = (time.time() - ultimo["inicio"]) / 3600
-                if duracion < 4:
+                if duracion < 1: # Reducido tiempo mínimo de sueño
                     self.data["afecto"] -= 5
                     self.data["personalidad"]["maltrato_psicologico"] += 2
                     print(f"{Color.RED}Lo despertaste muy pronto. Está molesto. (Afecto -5){Color.RESET}")
@@ -801,13 +812,13 @@ class GeoPet:
             print(f"\n{Color.GRAY}Edad aprox: {tiempo_total:.1f} horas{Color.RESET}")
 
     # ==========================================================
-    # JUEGOS (con recompensas)
+    # JUEGOS (con recompensas MEJORADAS y costes BAJOS)
     # ==========================================================
     def jugar(self, tipo_juego):
         if self.data["estado_dormido"]:
             print(f"{Color.YELLOW}Está durmiendo...{Color.RESET}")
             return
-        if self.data["energia"] < 15:
+        if self.data["energia"] < 5: # Antes < 15
             print(f"{Color.RED}Está demasiado cansado para jugar.{Color.RESET}")
             return
         
@@ -834,19 +845,19 @@ class GeoPet:
         if ganador == "empate":
             print(f"{Color.YELLOW}¡EMPATE!{Color.RESET}")
             self.data["afecto"] += 1
-            monedas = 3
-            exp = 5
+            monedas = 5 # Antes 3
+            exp = 8
         elif ganador == "usuario":
             print(f"{Color.GREEN}¡GANASTE! 🎉{Color.RESET}")
             self.data["afecto"] += 6
             self.data["personalidad"]["amor_recibido"] += 2
-            monedas = 10
-            exp = 15
+            monedas = 15 # Antes 10
+            exp = 20
         else:
             print(f"{Color.RED}{self.data['nombre']} ganó... 😏{Color.RESET}")
             self.data["afecto"] -= 1
-            monedas = 2
-            exp = 3
+            monedas = 3 # Antes 2
+            exp = 5
         
         self.data["monedas"] += monedas
         print(f"{Color.YELLOW}+{monedas}💰 | +{exp} EXP{Color.RESET}")
@@ -854,8 +865,10 @@ class GeoPet:
         history.append(eleccion)
         if len(history) > 30: history.pop(0)
         self.data["juegos_stats"]["rps"] += 1
-        self.data["hambre"] -= 4
-        self.data["energia"] -= 6
+        
+        # COSTOS REDUCIDOS
+        self.data["hambre"] -= 1 # Antes 4
+        self.data["energia"] -= 2 # Antes 6
         self.ganar_exp(exp)
         self.finalizar_juego("rps")
 
@@ -891,14 +904,15 @@ class GeoPet:
         if eleccion % 2 == 0: self.data["ia_memory"]["par_non_bias"] += 1
         else: self.data["ia_memory"]["par_non_bias"] -= 1
         
-        monedas = 5
-        exp = 8
+        monedas = 10 # Antes 5
+        exp = 15 # Antes 8
         self.data["monedas"] += monedas
         print(f"{Color.YELLOW}+{monedas}💰 | +{exp} EXP{Color.RESET}")
         
         self.data["juegos_stats"]["pares"] += 1
-        self.data["hambre"] -= 3
-        self.data["energia"] -= 4
+        # COSTOS REDUCIDOS
+        self.data["hambre"] -= 1 # Antes 3
+        self.data["energia"] -= 2 # Antes 4
         self.data["afecto"] += 2
         self.ganar_exp(exp)
         self.finalizar_juego("pares")
@@ -917,8 +931,8 @@ class GeoPet:
                 print(f"{Color.GREEN}¡CORRECTO en {intentos} intentos! 🎉{Color.RESET}")
                 self.data["afecto"] += 12
                 self.data["personalidad"]["amor_recibido"] += 3
-                monedas = max(20, 50 - intentos * 3)
-                exp = max(25, 40 - intentos * 2)
+                monedas = max(20, 100 - intentos * 5) # Antes 50-int*3
+                exp = max(25, 60 - intentos * 3)
                 self.data["monedas"] += monedas
                 print(f"{Color.YELLOW}+{monedas}💰 | +{exp} EXP{Color.RESET}")
                 self.ganar_exp(exp)
@@ -933,8 +947,9 @@ class GeoPet:
             print(f"{Color.YELLOW}+{monedas}💰{Color.RESET}")
         
         self.data["juegos_stats"]["adivina"] += 1
-        self.data["hambre"] -= 8
-        self.data["energia"] -= 10
+        # COSTOS REDUCIDOS
+        self.data["hambre"] -= 2 # Antes 8
+        self.data["energia"] -= 4 # Antes 10
         self.finalizar_juego("adivina")
 
     def juego_tictactoe(self):
@@ -957,15 +972,15 @@ class GeoPet:
                 mostrar()
                 print(f"{Color.GREEN}¡GANASTE! 🎉{Color.RESET}")
                 self.data["afecto"] += 8
-                monedas = 15
-                exp = 20
+                monedas = 20 # Antes 15
+                exp = 30
                 break
             if " " not in board:
                 mostrar()
                 print(f"{Color.YELLOW}¡EMPATE!{Color.RESET}")
                 self.data["afecto"] += 3
-                monedas = 8
-                exp = 10
+                monedas = 10 # Antes 8
+                exp = 15
                 break
             move = self.get_move_ttt(board)
             board[move] = "O"
@@ -983,8 +998,9 @@ class GeoPet:
             self.ganar_exp(exp)
         
         self.data["juegos_stats"]["tictactoe"] += 1
-        self.data["hambre"] -= 7
-        self.data["energia"] -= 9
+        # COSTOS REDUCIDOS
+        self.data["hambre"] -= 2 # Antes 7
+        self.data["energia"] -= 3 # Antes 9
         self.finalizar_juego("tictactoe")
 
     def get_move_ttt(self, board):

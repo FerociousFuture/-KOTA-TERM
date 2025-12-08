@@ -39,7 +39,7 @@ def main():
         with open(JSON_PATH, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        # --- LÓGICA DE SIMULACIÓN DE TIEMPO ---
+        # --- LÓGICA DE SIMULACIÓN DE TIEMPO (AJUSTADA A 24 HORAS) ---
         # Extraemos datos base
         ultima_conexion = float(data.get("ultima_conexion", time.time()))
         hambre = float(data.get("hambre", 100))
@@ -53,13 +53,13 @@ def main():
         # Aplicar el mismo decaimiento que el script principal
         if horas_pasadas > 0.02: # Solo si ha pasado un poco de tiempo
             if dormido:
-                # Metabolismo lento dormido
-                hambre -= horas_pasadas * 2.0
-                energia += horas_pasadas * 12.5
+                # Recuperación ULTRA RÁPIDA al dormir
+                hambre -= horas_pasadas * 0.5    # Casi no le da hambre dormido
+                energia += horas_pasadas * 50.0  # Se llena en 2 horas
             else:
-                # Metabolismo normal despierto
-                hambre -= horas_pasadas * 10.0
-                energia -= horas_pasadas * 6.25
+                # Decaimiento ajustado para 24h
+                hambre -= horas_pasadas * 4.2    # Tarda ~24 horas en llegar a 0%
+                energia -= horas_pasadas * 4.2   # Tarda ~24 horas en llegar a 0%
 
         # Limitar valores (Clamp 0-100)
         hambre = max(0, min(100, hambre))
