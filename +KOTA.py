@@ -827,6 +827,105 @@ class GeoPet:
         elif tipo_juego == "adivina": self.juego_adivina()
         elif tipo_juego == "tictactoe": self.juego_tictactoe()
         else: print(f"{Color.RED}Juego no reconocido. Usa: rps, pares, adivina, tictactoe{Color.RESET}")
+    
+    # ==========================================================
+    # SISTEMA DE INVENTARIO Y USO DE ITEMS
+    # ==========================================================
+    def usar_item(self, categoria):
+        """Permite al usuario seleccionar y usar un item de una categoría."""
+        
+        if self.data["estado_dormido"]:
+            print(f"{Color.YELLOW}+KOTA está durmiendo profundamente.{Color.RESET}")
+            return
+
+        inventario_cat = self.data["inventario"][categoria]
+        catalogo_cat = TIENDA_ITEMS[categoria]
+
+        if not inventario_cat or all(c == 0 for c in inventario_cat.values()):
+            print(f"{Color.RED}No tienes {categoria}. ¡Visita la tienda!{Color.RESET}")
+            return
+
+        print(f"\n{Color.CYAN}{categoria.capitalize()} disponibles:{Color.RESET}")
+        lista = [(n, c) for n, c in inventario_cat.items() if c > 0]
+        
+        for i, (nombre, cant) in enumerate(lista, 1):
+            item = catalogo_cat.get(nombre, {"emoji": "?"})
+            print(f"  {i}. {item['emoji']} {nombre.capitalize()} x{cant}")
+
+        try:
+            idx = input(f"\n{Color.CYAN}Usar (número, 0 para salir): {Color.RESET}").strip()
+            if idx == "0":
+                return
+                
+            idx = int(idx) - 1
+            
+            if 0 <= idx < len(lista):
+                nombre, _ = lista[idx]
+                item = catalogo_cat[nombre]
+                
+                # Consumir item del inventario
+                self.data["inventario"][categoria][nombre] -= 1
+
+                if categoria == "comidas":
+                    self._usar_comida_efecto(nombre, item)
+                elif categoria == "pociones":
+                    self._usar_pocion_efecto(nombre, item)
+
+                self.ganar_exp(15) # XP base por usar un item
+                self.actualizar_personalidad()
+                self.check_limites()
+                self.determinar_evolucion()
+                self.guardar_datos()
+                self.mostrar_estado()
+
+            else:
+                print(f"{Color.RED}Opción no válida{Color.RESET}")
+        except ValueError:
+            print(f"{Color.RED}Entrada no válida{Color.RESET}")
+
+    def _usar_comida_efecto(self, nombre, item):
+        """Aplica los efectos de la comida."""
+        
+        self.data["hambre"] += item["hambre"]
+        self.data["afecto"] += 3
+        
+        # Registrar tipo de comida
+        tipo = item.get("tipo", "comun")
+        if tipo == "chatarra":
+            self.data["personalidad"]["comida_chatarra"] += 1
+        elif tipo == "saludable":
+            self.data["personalidad"]["comida_saludable"] += 1
+        elif tipo == "premium":
+            self.data["personalidad"]["comida_premium"] += 1
+        
+        self.data["historial"]["alimentaciones"].append(time.time())
+        
+        print(f"\n{Color.GREEN}¡{self.data['nombre']} comió {item['emoji']} {nombre}!{Color.RESET}")
+        print(f"{Color.MAGENTA}(Hambre +{item['hambre']}, Afecto +3){Color.RESET}")
+
+    def _usar_pocion_efecto(self, nombre, item):
+        """Aplica los efectos de la poción."""
+        
+        msg = f"\n{Color.GREEN}🧪 ¡Usaste {item['emoji']} {nombre} en {self.data['nombre']}!{Color.RESET}"
+        
+        if "energia" in item:
+            delta = item["energia"]
+            self.data["energia"] += delta
+            msg += f"\n{Color.CYAN}(Energía +{delta}){Color.RESET}"
+            
+        if "estres" in item:
+            delta = item["estres"]
+            self.data["personalidad"]["estres"] += delta
+            msg += f"\n{Color.MAGENTA}(Estrés {delta}){Color.RESET}"
+        
+        # Efecto Full Revive
+        if nombre == "full_revive":
+            self.data["hambre"] = 100
+            self.data["afecto"] = 50
+            self.data["personalidad"]["privacion_sueno"] = 0
+            msg += f"\n{Color.YELLOW}¡FULL REVIVE! Stats restaurados.{Color.RESET}"
+            
+        print(msg)
 
     def juego_rps(self):
         print(f"\n{Color.CYAN}{Color.BOLD}✊ Piedra Papel Tijera{Color.RESET}\n")
@@ -1054,7 +1153,8 @@ def main():
         print(f"\n{Color.BOLD}Uso:{Color.RESET} python +KOTA.py [comando]\n")
         print(f"{Color.BOLD}Comandos disponibles:{Color.RESET}")
         print(f"  {Color.GREEN}estado{Color.RESET}           - Ver estado actual")
-        print(f"  {Color.GREEN}alimentar{Color.RESET}        - Dar comida del inventario")
+        print(f"  {Color.GREEN}usar{Color.RESET} [tipo]       - Usar item (comida, pocion)") # NUEVO
+        print(f"  {Color.GREEN}alimentar{Color.RESET}        - (Alias) Usar comida")
         print(f"  {Color.GREEN}acariciar{Color.RESET}        - Dar cariño")
         print(f"  {Color.GREEN}pasear{Color.RESET}           - Salir a caminar")
         print(f"  {Color.GREEN}dormir{Color.RESET}           - Dormir/Despertar")
@@ -1072,7 +1172,23 @@ def main():
     pet = GeoPet()
 
     if comando == "estado": pet.mostrar_estado()
-    elif comando == "alimentar": pet.usar_comida()
+    
+    # Comando 'usar' para items generales
+    elif comando == "usar":
+        if len(sys.argv) < 3: 
+            print(f"{Color.RED}Especifica qué usar (comida o pocion). Ej: usar pocion{Color.RESET}")
+        else:
+            tipo = sys.argv[2].lower()
+            if tipo in ["comida", "comidas"]:
+                pet.usar_item("comidas")
+            elif tipo in ["pocion", "pociones"]:
+                pet.usar_item("pociones")
+            else:
+                print(f"{Color.RED}Tipo de item no reconocido. Usa 'comida' o 'pocion'.{Color.RESET}")
+    
+    # Comando 'alimentar' ahora es un alias de 'usar comida'
+    elif comando == "alimentar": pet.usar_item("comidas") 
+
     elif comando == "acariciar": pet.acariciar()
     elif comando == "pasear": pet.pasear()
     elif comando == "dormir": pet.dormir()
